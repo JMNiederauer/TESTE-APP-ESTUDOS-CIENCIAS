@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pip-Pedro — Abrigo de Pistas (Mobile)</title>
+<style>
+  :root{
+    --bg:#0a0f0a; --scan:#0f200f; --fg:#7CFFA5; --accent:#D5FFDF; --muted:#86e6a9;
+    --danger:#ff6b6b; --ok:#76ff7a; --panel:#0a140a; --border:#1c4a24;
+    --bezel:#0c150c; --screw:#223e28; --tap:#123b22;
+    --tapRadius:14px; --tapPad:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(ellipse at center,var(--scan) 0%,#061006 70%) fixed;color:var(--fg);font-family:system-ui, "Segoe UI", Roboto, "Helvetica Neue","Courier New",monospace;line-height:1.25}
+
+  /* ===== VISOR-RELÓGIO ===== */
+  .pipwatch{position:sticky; top:0; z-index:5; padding:10px 12px 6px; background:linear-gradient(180deg,#0c160c,#061006 60%); border-bottom:1px solid var(--border)}
+  .pw-row{display:flex;align-items:center;gap:12px}
+  .watch{flex:0 0 120px;height:120px;border-radius:18px;background:radial-gradient(circle at 50% 48%, #0d1a0f 0%, #0b160c 60%, #081208 100%);border:2px solid #15321d;position:relative;box-shadow:inset 0 0 18px #0007}
+  .watch-screen{position:absolute; inset:8px; border-radius:10px; background:#071107; border:1px solid #11311b; overflow:hidden}
+  .watch-ui{position:absolute; inset:0; display:grid; grid-template-rows:1fr auto; padding:6px}
+  .watch-hhmm{font-size:28px; letter-spacing:1px; text-align:center}
+  .watch-date{font-size:11px; color:var(--muted); text-align:center}
+  .watch-bottom{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted)}
+  .battery{width:48px;height:8px;border:1px solid var(--border);border-radius:4px; position:relative}
+  .battery::after{content:""; position:absolute; right:-5px; top:1px; width:4px; height:6px; background:#11311b; border:1px solid var(--border); border-left:none; border-radius:0 2px 2px 0}
+  .battery .fill{height:100%; width:70%; background:linear-gradient(90deg,#26ff8a,#6bffb0);}
+  .titlebar{display:flex; gap:8px; align-items:center; min-width:0}
+  .titlebar h1{font-size:18px; margin:0}
+  .titlebar .sub{font-size:12px; color:var(--muted)}
+  .top-actions{margin-left:auto}
+  .btn{display:inline-flex; align-items:center; justify-content:center; padding:10px 14px; border-radius:12px; border:1px solid var(--border); color:var(--fg); background:#0a140a}
+  .btn:active{background:var(--tap)}
+
+  /* ===== LAYOUT ===== */
+  #wrap{padding:10px; display:grid; grid-template-columns:1fr; gap:10px; max-width:820px; margin:0 auto}
+  .panel{border:1px solid var(--border); border-radius:14px; padding:12px; background:rgba(7,17,7,.6); box-shadow:inset 0 0 10px rgba(0,0,0,.5)}
+  .title{font-weight:700; margin:0 0 8px; text-transform:uppercase; font-size:12px; color:var(--accent)}
+  .stat{display:flex; justify-content:space-between; align-items:center; margin:6px 0}
+  progress{width:100%; height:12px; appearance:none}
+  progress::-webkit-progress-bar{background:#0b150b; border:1px solid var(--border); border-radius:8px}
+  progress::-webkit-progress-value{background:linear-gradient(90deg,#26ff8a,#6bffb0)}
+  .row{display:flex; gap:8px; flex-wrap:wrap}
+  .muted{color:var(--muted)} .ok{color:var(--ok)} .danger{color:var(--danger)}
+  .objective{border:1px dashed var(--border); border-radius:12px; padding:10px; background:rgba(0,0,0,.15)}
+  .log{max-height:180px; overflow:auto; border:1px dashed var(--border); padding:10px; border-radius:12px; background:rgba(0,0,0,.15); font-size:13px}
+
+  /* ===== MAPA ===== */
+  #mapWrap{border:1px dashed var(--border); border-radius:12px; padding:10px; background:rgba(0,0,0,.15)}
+  #map{display:flex; gap:8px; overflow:auto; -webkit-overflow-scrolling:touch}
+  .node{display:grid; justify-items:center; gap:6px; min-width:92px}
+  .dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:#0b150b;display:grid;place-items:center}
+  .dot span{width:16px;height:16px;border-radius:50%;background:#184e2a}
+  .node.done .dot span{background:#17d96a; box-shadow:0 0 10px #17d96a88}
+  .node.curr .dot{border-color:#7cffb0}
+  .node.curr .dot span{background:#7cffb0}
+  .node label{font-size:12px; text-align:center}
+  .arrow{width:36px; min-width:36px; height:2px; background:linear-gradient(90deg,#214a2a,#357d47); position:relative}
+  .arrow::after{content:""; position:absolute; right:-2px; top:-4px; border:6px solid transparent; border-left-color:#357d47}
+
+  /* ===== AVATARES ===== */
+  .avatarRow{display:flex; gap:12px}
+  .av{width:56px;height:56px;border-radius:50%; border:2px solid var(--border); background:#051005; padding:6px}
+  .av.sel{outline:2px solid var(--fg); outline-offset:2px}
+
+  /* ===== TAREFAS: TOQUE ===== */
+  .chips{display:flex; flex-wrap:wrap; gap:10px}
+  .chip{min-width:44%; padding:12px; border-radius:14px; border:1px solid var(--border); background:#0b150b; text-align:center; font-weight:600; font-size:16px; user-select:none}
+  .chip:active{background:var(--tap)}
+  .chip.sel{outline:2px solid #7cffb0; outline-offset:2px}
+  .buckets{display:grid; gap:10px}
+  .bucket{min-height:64px; border:2px dashed #2b6b3a; border-radius:14px; padding:10px}
+  .bucket h4{margin:0 0 6px; font-size:14px; color:var(--accent)}
+  .bucket .slot{display:flex; flex-wrap:wrap; gap:8px}
+  .tapbar{display:flex; gap:8px; flex-wrap:wrap}
+  .tapbtn{flex:1 1 auto; min-height:44px; padding:12px; border-radius:12px; border:1px solid var(--border); background:#0b140b; font-weight:600}
+  .tapbtn:active{background:var(--tap)}
+  .success{border:1px solid #2e7d32; background:rgba(46,125,50,.15); padding:10px; border-radius:12px; margin-top:10px; font-size:15px}
+  .explain{color:#d5ffe5}
+
+  /* ===== MODAL FULL-SCREEN (MOBILE) ===== */
+  .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:99}
+  .sheet{position:absolute; inset:0; background:rgba(0,0,0,.75)}
+  .card{position:absolute; inset:8px; border:1px solid var(--border); border-radius:16px; background:#081208; padding:12px; display:flex; flex-direction:column; gap:10px}
+  .card .title{font-size:13px}
+  .grow{flex:1 1 auto; min-height:120px; overflow:auto}
+
+  /* ===== CONTROLES DE ORDEM ===== */
+  .orderItem{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px; border:1px solid var(--border); border-radius:12px; background:#0b150b; margin-bottom:8px; font-weight:700}
+  .orderBtns{display:flex; gap:6px}
+  .icon{width:42px; height:42px; border-radius:12px; background:#0e1a10; display:grid; place-items:center; border:1px solid var(--border)}
+  .icon:active{background:var(--tap)}
+
+  /* DESKTOP melhorado */
+  @media (min-width:900px){
+    #wrap{grid-template-columns:320px 1fr}
+    .watch{height:150px; flex-basis:150px}
+    .watch-hhmm{font-size:34px}
+    .chip{min-width:160px}
+  }
+</style>
+</head>
+<body>
+  <!-- VISOR/RELÓGIO -->
+  <div class="pipwatch">
+    <div class="pw-row">
+      <div class="watch">
+        <div class="watch-screen">
+          <div class="watch-ui">
+            <div>
+              <div id="watch-hhmm" class="watch-hhmm">--:--</div>
+              <div id="watch-date" class="watch-date">---</div>
+            </div>
+            <div class="watch-bottom">
+              <div>MODE: EDU</div>
+              <div class="battery"><div id="batFill" class="fill"></div></div>
+              <div id="watch-sec">-- s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="titlebar">
+        <div>
+          <h1>Pip-Pedro — Abrigo de Pistas</h1>
+          <div class="sub">Mobile-first • ensino por pistas • mapa + relógio • progresso salvo</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="btnReset">Resetar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="wrap">
+    <!-- ESQUERDA -->
+    <section class="panel">
+      <div class="title">Status</div>
+      <div class="stat"><span>HP</span><span id="hpText">20/20</span></div>
+      <progress id="hpBar" value="20" max="20"></progress>
+
+      <div class="title" style="margin-top:10px">Companheiro</div>
+      <div class="avatarRow" id="avatarRow"></div>
+
+      <div class="title" style="margin-top:10px">Objetivo</div>
+      <div class="objective" id="objective"></div>
+
+      <div class="title" style="margin-top:10px">Registro</div>
+      <div class="log" id="log"></div>
+    </section>
+
+    <!-- DIREITA -->
+    <section class="panel">
+      <div class="title">Mapa</div>
+      <div id="mapWrap">
+        <div id="map">
+          <div class="node" id="n-org"><div class="dot"><span></span></div><label>Org. da Vida</label></div><div class="arrow"></div>
+          <div class="node" id="n-tipos"><div class="dot"><span></span></div><label>Tipos de Célula</label></div><div class="arrow"></div>
+          <div class="node" id="n-memb"><div class="dot"><span></span></div><label>Membrana</label></div><div class="arrow"></div>
+          <div class="node" id="n-organelas"><div class="dot"><span></span></div><label>Organelas</label></div><div class="arrow"></div>
+          <div class="node" id="n-tec"><div class="dot"><span></span></div><label>Tecidos</label></div><div class="arrow"></div>
+          <div class="node" id="n-pele"><div class="dot"><span></span></div><label>Pele</label></div><div class="arrow"></div>
+          <div class="node" id="n-micro"><div class="dot"><span></span></div><label>Microscopia</label></div><div class="arrow"></div>
+          <div class="node" id="n-boss"><div class="dot"><span></span></div><label>Encerrar</label></div>
+        </div>
+      </div>
+
+      <div class="title" style="margin-top:10px">Local</div>
+      <div id="locName"><b>Abrigo — Refúgio 6º Ano</b></div>
+      <div class="muted" id="locDesc" style="font-size:14px">Toque para abrir a pista do capítulo.</div>
+
+      <div class="title" style="margin-top:10px">Ações</div>
+      <div id="choices" class="row"></div>
+    </section>
+  </div>
+
+  <!-- MODAL (full-screen no mobile) -->
+  <div class="modal" id="taskModal" role="dialog" aria-modal="true">
+    <div class="sheet"></div>
+    <div class="card">
+      <div class="title" id="taskTitle">Missão</div>
+      <div id="taskBody" class="grow"></div>
+      <div class="row">
+        <button class="btn" id="btnHint">Dica</button>
+        <button class="btn" id="btnClose">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ===== Audio SFX minimal ===== */
+const AudioCtx = window.AudioContext || window.webkitAudioContext; let ACTX;
+function tone({f=440,d=0.06,t='sine',v=0.15}){ try{ ACTX=ACTX||new AudioCtx(); const o=ACTX.createOscillator(), g=ACTX.createGain(); o.type=t; o.frequency.value=f; g.gain.value=v; o.connect(g).connect(ACTX.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ACTX.currentTime + d); o.stop(ACTX.currentTime + d);}catch{} }
+const SFX = { ok:()=>{tone({f:760}); setTimeout(()=>tone({f:980}),90);}, bad:()=>{tone({f:220}); setTimeout(()=>tone({f:160}),120);} };
+
+/* ===== Relógio ===== */
+function pad(n){return (n<10?'0':'')+n;}
+function updateWatch(){ const now=new Date(); const hh=pad(now.getHours()), mm=pad(now.getMinutes()), ss=pad(now.getSeconds());
+  const days=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"]; const months=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  document.getElementById('watch-hhmm').textContent=`${hh}:${mm}`;
+  document.getElementById('watch-sec').textContent=`${ss} s`;
+  document.getElementById('watch-date').textContent=`${days[now.getDay()]} • ${pad(now.getDate())} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  const bat=50+40*Math.sin(now.getMinutes()/60*Math.PI*2); document.getElementById('batFill').style.width=`${Math.max(10,Math.min(95,bat))}%`;
+}
+setInterval(updateWatch,1000); updateWatch();
+
+/* ===== Estado & UI ===== */
+const AVATARS = [
+  {id:"dog",name:"Rottweiler",svg:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' rx='14' fill='#061006'/><circle cx='40' cy='40' r='22' fill='#1a1a1a' stroke='#ff9e3a' stroke-width='2'/><ellipse cx='40' cy='47' rx='10' ry='7' fill='#2a2a2a'/><circle cx='35' cy='45' r='2' fill='#000'/><circle cx='45' cy='45' r='2' fill='#000'/></svg>`},
+  {id:"capi",name:"Capivara",svg:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' rx='14' fill='#061006'/><ellipse cx='40' cy='42' rx='22' ry='20' fill='#8a6746' stroke='#5d3f28' stroke-width='2'/><circle cx='32' cy='38' r='3' fill='#111'/><circle cx='48' cy='38' r='3' fill='#111'/></svg>`},
+  {id:"coba",name:"Porco-da-Índia",svg:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' rx='14' fill='#061006'/><ellipse cx='40' cy='44' rx='20' ry='16' fill='#e7bda7' stroke='#c6967f' stroke-width='2'/><circle cx='30' cy='40' r='3' fill='#111'/><circle cx='50' cy='40' r='3' fill='#111'/></svg>`}
+];
+const state={ hp:20,hpMax:20, avatar:"dog", loc:"vault",
+  passed:{org:false, tipos:false, memb:false, organelas:false, tec:false, pele:false, micro:false},
+  bossUnlocked:false };
+function save(){ try{ localStorage.setItem("pipPedroPistasMobileV1", JSON.stringify(state)); }catch{} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("pipPedroPistasMobileV1")||"null"); if(s) Object.assign(state,s);}catch{} }
+
+const hpText=document.getElementById('hpText'); const hpBar=document.getElementById('hpBar'); const logEl=document.getElementById('log');
+const avatarRow=document.getElementById('avatarRow'); const objective=document.getElementById('objective');
+const locName=document.getElementById('locName'); const locDesc=document.getElementById('locDesc'); const choices=document.getElementById('choices');
+
+function renderStatus(){ hpText.textContent=`${state.hp}/${state.hpMax}`; hpBar.max=state.hpMax; hpBar.value=state.hp; }
+function log(t){ logEl.innerHTML += `• ${t}<br>`; logEl.scrollTop = logEl.scrollHeight; }
+function renderAvatars(){ avatarRow.innerHTML=""; AVATARS.forEach(av=>{ const d=document.createElement('div'); d.className='av'; d.innerHTML=av.svg; if(state.avatar===av.id) d.classList.add('sel'); d.onclick=()=>{state.avatar=av.id; save(); renderAvatars();}; avatarRow.appendChild(d); }); }
+
+function currIdx(){ const order=['org','tipos','memb','organelas','tec','pele','micro']; for(let i=0;i<order.length;i++){ if(!state.passed[order[i]]) return i; } return order.length; }
+function labelOf(id){ return ({org:"Organização da Vida",tipos:"Tipos de Célula",memb:"Membrana",organelas:"Organelas",tec:"Tecidos",pele:"Pele & Epitélio",micro:"Microscopia"})[id]||id; }
+function nextOf(id){ const order=['org','tipos','memb','organelas','tec','pele','micro']; const i=order.indexOf(id); return (i>=0&&i<order.length-1)? order[i+1]:null; }
+function renderObjective(){ const titles=["Organização da Vida","Tipos de Célula","Membrana","Organelas","Tecidos","Pele & Epitélio","Microscopia"]; const i=currIdx(); objective.textContent=(i<titles.length)?`Cap.${i+1} — ${titles[i]} (toque em “Abrir pista”)`:"Final — Ir a Encerrar."; }
+
+function renderMap(){
+  const ids=['org','tipos','memb','organelas','tec','pele','micro','boss'];
+  const dom=['n-org','n-tipos','n-memb','n-organelas','n-tec','n-pele','n-micro','n-boss'];
+  const i=currIdx();
+  ids.forEach((k,idx)=>{ const el=document.getElementById(dom[idx]); el.classList.remove('done','curr');
+    if(k==='boss'){ if(state.bossUnlocked) el.classList.add('done'); if(i===ids.length-1) el.classList.add('curr'); }
+    else if(state.passed[k]) el.classList.add('done');
+    if(idx===i) el.classList.add('curr');
+  });
+}
+
+const LOCS={
+  vault:{name:"Abrigo — Refúgio 6º Ano",desc:"A jornada começa por Organização da Vida.",actions:[{label:"Abrir pista — Organização da Vida",task:"org"}]},
+  org:{name:"Área 1 — Organização da Vida",desc:"Monte a ordem dos níveis biológicos.",actions:[{label:"Abrir pista",task:"org"}]},
+  tipos:{name:"Área 2 — Tipos de Célula",desc:"Classifique por toque (sem arrastar).",actions:[{label:"Abrir pista",task:"tipos"}]},
+  memb:{name:"Área 3 — Membrana",desc:"Ative funções essenciais.",actions:[{label:"Abrir pista",task:"memb"}]},
+  organelas:{name:"Área 4 — Organelas",desc:"Combine organela ↔ função.",actions:[{label:"Abrir pista",task:"organelas"}]},
+  tec:{name:"Área 5 — Tecidos",desc:"Agrupe exemplos e revele fatos.",actions:[{label:"Abrir pista",task:"tec"}]},
+  pele:{name:"Área 6 — Pele & Epitélio",desc:"Ordem das camadas e hotspots.",actions:[{label:"Abrir pista",task:"pele"}]},
+  micro:{name:"Área 7 — Microscopia",desc:"Revele história e instrumentos.",actions:[{label:"Abrir pista",task:"micro"}]},
+  boss:{name:"Encerrar",desc:"Mensagem final do Professor do Abrigo.",actions:[{label:"Encerrar jornada",fight:()=>ending()}]}
+};
+
+function goto(k){ state.loc=k; save(); const L=LOCS[k]; locName.innerHTML=`<b>${L.name}</b>`; locDesc.textContent=L.desc; choices.innerHTML="";
+  L.actions.forEach(a=>{ const b=document.createElement('button'); b.className='btn'; b.style.width='100%'; b.textContent=a.label;
+    b.onclick=()=>{ if(a.task) openTask(a.task); if(a.fight) a.fight(); }; choices.appendChild(b); });
+  if(state.bossUnlocked && k!=="boss"){ const g=document.createElement('button'); g.className='btn'; g.style.width='100%'; g.textContent="→ Ir para Encerrar"; g.onclick=()=>goto("boss"); choices.appendChild(g); }
+  renderMap(); renderObjective();
+}
+
+/* ===== Modal ===== */
+const taskModal=document.getElementById('taskModal'); const taskTitle=document.getElementById('taskTitle'); const taskBody=document.getElementById('taskBody');
+document.getElementById('btnClose').onclick=()=>taskModal.style.display='none';
+document.getElementById('btnHint').onclick=()=>{ const h=taskBody.querySelector('[data-hint]'); if(h) h.style.display=(h.style.display==='none'?'block':'none'); };
+
+/* ===== Helpers de UI ===== */
+function makeChip(text,key){ const e=document.createElement('button'); e.type='button'; e.className='chip'; e.textContent=text; e.dataset.key=key||text; e.onclick=()=>selectChip(e); return e; }
+let selectedChip=null;
+function selectChip(e){ if(selectedChip===e){ e.classList.remove('sel'); selectedChip=null; return; } if(selectedChip) selectedChip.classList.remove('sel'); selectedChip=e; e.classList.add('sel'); }
+function makeBucket(title,accept){ const w=document.createElement('div'); w.className='bucket'; const h=document.createElement('h4'); h.textContent=title; const slot=document.createElement('div'); slot.className='slot';
+  w.dataset.accept=(accept||[]).join(','); w.append(h,slot);
+  w.onclick=(ev)=>{ // tap para soltar
+    if(!selectedChip) return;
+    const acc=w.dataset.accept.split(','); if(acc.length && !acc.includes(selectedChip.dataset.key)){ SFX.bad(); return; }
+    slot.appendChild(selectedChip); SFX.ok(); selectedChip.classList.remove('sel'); selectedChip=null;
+  };
+  return w;
+}
+
+/* ===== Tarefas (tocáveis) — somente conteúdo do material ===== */
+function openTask(id){
+  taskBody.innerHTML=""; taskTitle.textContent="Missão";
+  if(id==='org'){
+    taskTitle.textContent="Montagem — Organização da Vida";
+    const hint=`<div class="muted" data-hint style="display:none">Dica: célula → tecido → órgão → sistema → organismo.</div>`;
+    const listWrapper=document.createElement('div');
+    const seq=['célula','tecido','órgão','sistema','organismo'];
+    const items=seq.map((t,i)=>({t,i}));
+    const list=document.createElement('div');
+    function draw(){
+      list.innerHTML="";
+      items.forEach((o,idx)=>{
+        const row=document.createElement('div'); row.className='orderItem';
+        row.innerHTML=`<div>${o.t}</div>`;
+        const btns=document.createElement('div'); btns.className='orderBtns';
+        const up=document.createElement('button'); up.className='icon'; up.textContent='↑';
+        const dn=document.createElement('button'); dn.className='icon'; dn.textContent='↓';
+        up.onclick=()=>{ if(idx>0){ [items[idx-1],items[idx]]=[items[idx],items[idx-1]]; draw(); } };
+        dn.onclick=()=>{ if(idx<items.length-1){ [items[idx+1],items[idx]]=[items[idx],items[idx+1]]; draw(); } };
+        btns.append(up,dn); row.appendChild(btns); list.appendChild(row);
+      });
+    }
+    draw();
+    const check=document.createElement('button'); check.className='btn'; check.style.width='100%'; check.textContent='Confirmar ordem';
+    check.onclick=()=>{
+      const ok=items.map(x=>x.t).join('>')===seq.join('>');
+      if(ok){ teach("Perfeito! Todo ser vivo é formado por <b>célula</b>. Células semelhantes formam <b>tecidos</b>, que organizados formam <b>órgãos</b>; estes trabalham em <b>sistemas</b>, integrando o <b>organismo</b>."); }
+      else { SFX.bad(); alert("Ajuste a ordem até ficar: célula → tecido → órgão → sistema → organismo."); }
+    };
+    listWrapper.append(list,check); taskBody.innerHTML=hint; taskBody.appendChild(listWrapper);
+  }
+
+  if(id==='tipos'){
+    taskTitle.textContent="Classificação — Tipos de Célula";
+    const hint=`<div class="muted" data-hint style="display:none">Dica: Procarionte = <b>sem</b> núcleo com membrana. Vegetal tem <b>parede celular</b> e <b>cloroplastos</b>. Animal não tem esses dois.</div>`;
+    const pool=document.createElement('div'); pool.className='chips';
+    const cards=[
+      {t:"Sem núcleo com membrana",k:"sem_nucleo"},
+      {t:"Núcleo com membrana + organelas",k:"com_nucleo"},
+      {t:"Parede celular e cloroplastos",k:"vegetal"},
+      {t:"Sem parede e sem cloroplasto",k:"animal"}
+    ]; cards.forEach(c=>pool.appendChild(makeChip(c.t,c.k)));
+    const grid=document.createElement('div'); grid.className='buckets'; grid.style.gridTemplateColumns='1fr';
+    const b1=makeBucket("Procarionte",["sem_nucleo"]);
+    const b2=makeBucket("Eucarionte",["com_nucleo"]);
+    const b3=makeBucket("Animal",["animal"]);
+    const b4=makeBucket("Vegetal",["vegetal"]);
+    grid.append(b1,b2,b3,b4);
+    const done=document.createElement('button'); done.className='btn'; done.style.width='100%'; done.textContent='Concluir';
+    done.onclick=()=>{
+      const ok=[b1,b2,b3,b4].every(b=>{
+        const acc=b.dataset.accept.split(',')[0]; const placed=[...b.querySelectorAll('.chip')];
+        return placed.length>=1 && placed.every(c=>c.dataset.key===acc);
+      });
+      if(ok){ teach("Ótimo! Procariontes não têm <b>núcleo com membrana</b>. Eucariontes têm. Célula <b>vegetal</b> possui <b>parede celular</b> e <b>cloroplastos</b>; a <b>animal</b> não possui esses dois."); }
+      else { SFX.bad(); alert("Há cartões faltando ou em baldes errados. Toque nos cartões e depois no balde correto."); }
+    };
+    taskBody.innerHTML=hint; taskBody.append(pool,grid,done);
+  }
+
+  if(id==='memb'){
+    taskTitle.textContent="Ativar — Membrana Plasmática";
+    const hint=`<div class="muted" data-hint style="display:none">Dica: a membrana <b>delimita</b> a célula e <b>controla</b> o que entra e sai.</div>`;
+    const bar=document.createElement('div'); bar.className='tapbar';
+    const a=document.createElement('button'); a.className='tapbtn'; a.textContent='Ativar: Delimitar célula';
+    const b=document.createElement('button'); b.className='tapbtn'; b.textContent='Ativar: Controlar entradas/saídas';
+    let A=false,B=false;
+    function check(){ if(A&&B) teach("Perfeito! A <b>membrana plasmática</b> contorna a célula e <b>controla</b> o que entra e sai."); }
+    a.onclick=()=>{ A=true; a.disabled=true; SFX.ok(); check(); };
+    b.onclick=()=>{ B=true; b.disabled=true; SFX.ok(); check(); };
+    taskBody.innerHTML=hint; taskBody.append(bar); bar.append(a,b);
+  }
+
+  if(id==='organelas'){
+    taskTitle.textContent="Combinar — Organelas ↔ Funções";
+    const hint=`<div class="muted" data-hint style="display:none">Dica: Núcleo(DNA/controle), Ribossomos(proteínas), RER/REL(prot./lipídios), Golgi(secreção/embalagem), Lisossomos(digestão), Mitocôndrias(energia), Centríolos(cílios/flagelos), Cloroplastos(fotossíntese), Vacúolo(armazeno), Parede(suporte).</div>`;
+    const funcs=[
+      {t:"Armazena DNA e controla a célula",k:"nuc"},
+      {t:"Síntese de proteínas",k:"rib"},
+      {t:"RER: proteínas | REL: lipídios",k:"re"},
+      {t:"Modifica/embala/secreta proteínas",k:"golgi"},
+      {t:"Digestão intracelular",k:"liso"},
+      {t:"Energia (respiração celular)",k:"mito"},
+      {t:"Forma cílios e flagelos",k:"cent"},
+      {t:"Fotossíntese",k:"cloro"},
+      {t:"Armazenamento (água) e pressão interna",k:"vacu"},
+      {t:"Suporte/rigidez externa",k:"parede"}
+    ];
+    const names=[
+      ["Núcleo","nuc"],["Ribossomos","rib"],["RER/REL","re"],["Complexo de Golgi","golgi"],["Lisossomos","liso"],
+      ["Mitocôndrias","mito"],["Centríolos","cent"],["Cloroplastos","cloro"],["Vacúolo (vegetal)","vacu"],["Parede celular (vegetal)","parede"]
+    ];
+    const pool=document.createElement('div'); pool.className='chips'; funcs.forEach(f=>pool.appendChild(makeChip(f.t,f.k)));
+    const grid=document.createElement('div'); grid.className='buckets'; grid.style.gridTemplateColumns='1fr';
+    names.forEach(([n,k])=>grid.appendChild(makeBucket(n,[k])));
+    const done=document.createElement('button'); done.className='btn'; done.style.width='100%'; done.textContent='Concluir';
+    done.onclick=()=>{
+      const ok=[...grid.querySelectorAll('.bucket')].every(b=>{
+        const acc=b.dataset.accept.split(',')[0]; const placed=[...b.querySelectorAll('.chip')];
+        return placed.length===1 && placed[0].dataset.key===acc;
+      });
+      if(ok){ teach("Excelente! Cada organela ligada à sua função conforme o material."); }
+      else { SFX.bad(); alert("Ainda há pares incorretos ou faltando. Toque no cartão e depois no balde correto."); }
+    };
+    taskBody.innerHTML=hint; taskBody.append(pool,grid,done);
+  }
+
+  if(id==='tec'){
+    taskTitle.textContent="Agrupar — Tecidos";
+    const hint=`<div class="muted" data-hint style="display:none">Dica: 4 grupos — Epitelial, Conjuntivo, Muscular, Nervoso. Conjuntivo geralmente é vascularizado (exceto cartilagem), tem matriz extracelular e inclui o sangue (transporte).</div>`;
+    const exemplos=[
+      {t:"Revestimento/proteção",k:"epi"},
+      {t:"Sangue (transporte)",k:"con"},
+      {t:"Matriz extracelular",k:"con"},
+      {t:"Contração/movimento",k:"mus"},
+      {t:"Impulsos/integração",k:"nev"}
+    ];
+    const grupos=[["Epitelial","epi"],["Conjuntivo","con"],["Muscular","mus"],["Nervoso","nev"]];
+    const pool=document.createElement('div'); pool.className='chips'; exemplos.forEach(e=>pool.appendChild(makeChip(e.t,e.k)));
+    const grid=document.createElement('div'); grid.className='buckets'; grid.style.gridTemplateColumns='1fr';
+    grupos.forEach(([n,k])=>grid.appendChild(makeBucket(n,[k])));
+    const facts=document.createElement('div'); facts.className='success'; facts.style.display='none';
+    facts.innerHTML="<div class='explain'><b>Conjuntivo</b>: geralmente <b>vascularizado</b> (exceto cartilagem), possui <b>matriz extracelular</b> e inclui o <b>sangue</b> (transporte).</div>";
+    const done=document.createElement('button'); done.className='btn'; done.style.width='100%'; done.textContent='Concluir';
+    done.onclick=()=>{
+      const ok=[...grid.querySelectorAll('.bucket')].every(b=>{
+        const acc=b.dataset.accept.split(',')[0]; const placed=[...b.querySelectorAll('.chip')];
+        return placed.every(c=>c.dataset.key===acc) && placed.length>=1;
+      });
+      if(ok){ facts.style.display='block'; teach("Muito bom! Os grupos e exemplos batem com o material."); }
+      else { SFX.bad(); alert("Ajuste até cada grupo conter apenas exemplos corretos."); }
+    };
+    taskBody.innerHTML=hint; taskBody.append(pool,grid,done,facts);
+  }
+
+  if(id==='pele'){
+    taskTitle.textContent="Sequência + Hotspots — Pele & Epitélio";
+    const hint=`<div class="muted" data-hint style="display:none">Dica: Epiderme → Derme → Hipoderme. Função principal: revestimento/proteção. Melanócitos na epiderme (melanina/UV).</div>`;
+    const seq=['Epiderme','Derme','Hipoderme'];
+    const items=seq.map(t=>t);
+    const list=document.createElement('div');
+    function draw(){
+      list.innerHTML="";
+      items.forEach((t,idx)=>{
+        const row=document.createElement('div'); row.className='orderItem';
+        row.innerHTML=`<div>${t}</div>`;
+        const btns=document.createElement('div'); btns.className='orderBtns';
+        const up=document.createElement('button'); up.className='icon'; up.textContent='↑';
+        const dn=document.createElement('button'); dn.className='icon'; dn.textContent='↓';
+        up.onclick=()=>{ if(idx>0){ [items[idx-1],items[idx]]=[items[idx],items[idx-1]]; draw(); } };
+        dn.onclick=()=>{ if(idx<items.length-1){ [items[idx+1],items[idx]]=[items[idx],items[idx+1]]; draw(); } };
+        btns.append(up,dn); row.append(btns); list.append(row);
+      });
+    } draw();
+    const confirm=document.createElement('button'); confirm.className='btn'; confirm.style.width='100%'; confirm.textContent='Confirmar ordem';
+    confirm.onclick=()=>{ const ok=items.join('>')===seq.join('>'); if(ok){ teach("Sequência correta! <b>Epiderme</b> (externa), <b>Derme</b> (resistência/elasticidade, folículos, glândulas, vasos, nervos no colágeno) e <b>Hipoderme</b> (reserva/absorção de choques)."); } else { SFX.bad(); alert("Revise: Epiderme → Derme → Hipoderme."); } };
+    const tipbar=document.createElement('div'); tipbar.className='tapbar';
+    const b1=document.createElement('button'); b1.className='tapbtn'; b1.textContent="Mostrar: Função do epitélio";
+    const b2=document.createElement('button'); b2.className='tapbtn'; b2.textContent="Mostrar: Melanócitos";
+    const panel=document.createElement('div'); panel.className='success'; panel.style.display='none';
+    b1.onclick=()=>{ panel.style.display='block'; panel.innerHTML="<div class='explain'><b>Função:</b> revestimento e proteção do corpo contra invasores e perda de água.</div>"; };
+    b2.onclick=()=>{ panel.style.display='block'; panel.innerHTML="<div class='explain'><b>Melanócitos</b> (na Epiderme) produzem <b>melanina</b>, ajudando na proteção contra UV.</div>"; };
+    taskBody.innerHTML=hint; taskBody.append(list,confirm,tipbar,panel); tipbar.append(b1,b2);
+  }
+
+  if(id==='micro'){
+    taskTitle.textContent="Revelar — Microscopia";
+    const hint=`<div class="muted" data-hint style="display:none">Dica: Hooke → cortiça com microscópio composto. Tipos modernos: óptico e eletrônico.</div>`;
+    const a=document.createElement('button'); a.className='btn'; a.style.width='100%'; a.textContent="Revelar: Descoberta da 'célula' (Hooke)";
+    const b=document.createElement('button'); b.className='btn'; b.style.width='100%'; b.textContent="Revelar: Tipos de microscópio";
+    const panel=document.createElement('div'); panel.className='success'; panel.style.display='none';
+    a.onclick=()=>{ panel.style.display='block'; panel.innerHTML="<div class='explain'><b>Hooke</b> observou <b>cortiça</b> com um <b>microscópio composto</b> (duas lentes) e descreveu compartimentos chamados de 'células'.</div>"; };
+    b.onclick=()=>{ panel.style.display='block'; panel.innerHTML="<div class='explain'><b>Microscópios modernos</b>: <b>óptico</b> e <b>eletrônico</b> (o material cita a existência dos dois).</div>"; };
+    const done=document.createElement('button'); done.className='btn'; done.style.width='100%'; done.textContent='Concluir';
+    done.onclick=()=>{ teach("Boa! Você conectou a história e os instrumentos do material."); };
+    taskBody.innerHTML=hint; taskBody.append(a,b,panel,done);
+  }
+
+  taskModal.style.display='flex';
+}
+
+function teach(message){
+  SFX.ok();
+  const box=document.createElement('div'); box.className='success'; box.innerHTML=`<div class='explain'>${message}</div>`;
+  taskBody.appendChild(box);
+  const next=document.createElement('button'); next.className='btn'; next.style.width='100%'; next.textContent='Concluir pista';
+  next.onclick=()=>{ taskModal.style.display='none'; closeTask(); };
+  taskBody.appendChild(next);
+}
+
+function closeTask(){
+  const mapKey = state.loc==='vault' ? 'org' : state.loc;
+  if(!state.passed[mapKey]){ state.passed[mapKey]=true; log(`<b>${labelOf(mapKey)}</b> concluído.`); }
+  if(Object.values(state.passed).every(Boolean)){ state.bossUnlocked=true; log("<b>Todas as pistas concluídas.</b> Vá a Encerrar."); }
+  save(); renderMap(); renderObjective();
+  const next = nextOf(mapKey); if(next) goto(next); else goto("boss");
+}
+
+/* ===== Encerramento ===== */
+function ending(){
+  choices.innerHTML="";
+  const msg=document.createElement('div'); msg.className='success';
+  msg.innerHTML="<div class='explain'><b>Professor do Abrigo:</b> Parabéns, Pedro! Você concluiu as 7 missões de estudo. Revise o que achou mais desafiador e me conte o que aprendeu. </div>";
+  const btn=document.createElement('button'); btn.className='btn'; btn.style.width='100%'; btn.textContent="Reiniciar trilha";
+  btn.onclick=()=>{ localStorage.removeItem("pipPedroPistasMobileV1"); location.reload(); };
+  choices.append(msg,btn);
+}
+
+/* ===== Init ===== */
+document.getElementById('btnReset').onclick=()=>{ if(confirm("Apagar progresso salvo?")){ localStorage.removeItem("pipPedroPistasMobileV1"); location.reload(); } };
+function renderAll(){ renderStatus(); renderAvatars(); renderObjective(); goto(state.loc); }
+load(); renderAll(); renderMap();
+log("Dica: no celular, toque no cartão e depois no balde. Na ordem, use ↑/↓.");
+</script>
+</body>
+</html>
+
